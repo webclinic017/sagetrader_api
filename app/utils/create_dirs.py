@@ -22,3 +22,15 @@ def resolve_media_dirs_for(target: str) -> str:
         dir_util.mkpath(str_path)
         
     return str_path
+
+
+def create_dir(dir_name: str):
+    path = Path(dir_name)
+    if not path.is_dir():
+        dir_util.mkpath(dir_name)
+
+
+def resolve_root_dirs():
+    _dirs = ["media", "static"]
+    for _dir in _dirs:
+        create_dir(_dir)

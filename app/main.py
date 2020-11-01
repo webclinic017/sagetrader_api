@@ -4,6 +4,7 @@ from starlette.requests import Request
 from fastapi.staticfiles import StaticFiles
 
 from app.settings import config
+from app.utils.create_dirs import resolve_root_dirs
 from app.api import api_router
 import app.apps
 from app.settings.database import Base, SessionLocal, engine
@@ -30,6 +31,8 @@ if config.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     ),
 
+
+resolve_root_dirs()
 # app.mount('/static', StaticFiles(directory="static"), name='static')
 app.mount('/media', StaticFiles(directory="media"), name='media')
 app.include_router(api_router, prefix=config.API_V1_STR)
