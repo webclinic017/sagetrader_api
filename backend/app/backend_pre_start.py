@@ -1,7 +1,7 @@
 import logging, coloredlogs
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
-from app.settings.database import db_session
+from settings.database import db_session
 
 
 coloredlogs.install()

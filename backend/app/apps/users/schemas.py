@@ -8,7 +8,8 @@ class UserBase(BaseModel):
     email: Optional[str] = None
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class UserBaseInDB(UserBase):
@@ -19,7 +20,7 @@ class UserBaseInDB(UserBase):
 
 
 # Properties to receive via API on creation
-class UserCreate(UserBaseInDB):
+class UserCreate(UserBase):
     email: str
     password: str
 
@@ -37,3 +38,8 @@ class User(UserBaseInDB):
 # Additional properties stored in DB
 class UserInDB(UserBaseInDB):
     hashed_password: str
+
+# Login Exras
+class UserLoginExtras(BaseModel):
+    first_name: str = None
+    last_name: str = None

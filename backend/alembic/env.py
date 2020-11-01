@@ -8,8 +8,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.settings.config import SQLALCHEMY_DATABASE_URI
-from src.settings.alembic_base import Base
+from app.settings.config import SQLALCHEMY_DATABASE_URI
+from app.settings.alembic_base import Base
 
 
 # this is the Alembic Config object, which provides

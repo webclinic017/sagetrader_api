@@ -1,9 +1,10 @@
-from typing import Optional
-
+from typing import Optional, List, ForwardRef
+from datetime import datetime
 from pydantic import BaseModel
 
+
 #
-# ........ Instrument Schemas .........
+# ............................................ Instrument Schemas
 #
 class InstrumentBase(BaseModel):
     name: str
@@ -22,7 +23,7 @@ class InstrumentCreate(InstrumentBase):
 
 
 #
-# ........ Strategy Schemas .........
+# ............................................ Strategy Schemas
 #
 class StrategyBase(BaseModel):
     name: str
@@ -45,8 +46,9 @@ class StrategyPlusStats(Strategy):
     total_trades: int
     won_trades: int
     lost_trades: int
+
 #
-# ........ StrategyImage Schemas .........
+# ............................................ StrategyImage Schemas
 #
 class StrategyImageBase(BaseModel):
     strategy_id: int
@@ -83,7 +85,7 @@ class StrategyImageCreate(StrategyImageBase):
 
 
 #
-# ........ Style Schemas .........
+# ............................................ Style Schemas
 #
 class StyleBase(BaseModel):
     name: str
@@ -104,7 +106,7 @@ class StyleCreate(StyleBase):
 
 
 #
-# ........ Trade Schemas .........
+# ............................................ Trade Schemas
 #
 class TradeBase(BaseModel):
     instrument_id: int
@@ -116,7 +118,7 @@ class TradeBase(BaseModel):
     rr: float
     style_id: int
     description: str
-    date: str
+    date: datetime = None
 
 class Trade(TradeBase):
     id: int
@@ -140,14 +142,14 @@ class TradeUpdate(Trade):
     style_id: Optional[int] = None
     style: Optional[Style] = None
     description: Optional[str] = None
-    date: Optional[str] = None
+    date: Optional[datetime] = None
 
 class TradeCreate(TradeBase):
     pass
 
 
 #
-# ........ StrategyImage Schemas .........
+# ............................................ StrategyImage Schemas
 #
 class TradeImageBase(BaseModel):
     trade_id: int
@@ -184,7 +186,7 @@ class TradeImageCreate(TradeImageBase):
 
 
 #
-# ........ TradingPlan Schemas .........
+# ............................................ TradingPlan Schemas
 #
 class TradingPlanBase(BaseModel):
     name: str
@@ -203,8 +205,9 @@ class TradingPlanUpdate(TradingPlan):
 class TradingPlanCreate(TradingPlanBase):
     pass
 
+
 #
-# ........ Tasks/Notes Schemas .........
+# ............................................ Tasks/Notes Schemas
 #
 class TaskBase(BaseModel):
     name: str
@@ -222,3 +225,167 @@ class TaskUpdate(Task):
 
 class TaskCreate(TaskBase):
     pass
+
+
+#
+# ............................................ Study Schemas
+#
+
+class StudyBase(BaseModel):
+    name: str
+    description: str
+
+class Study(StudyBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+class StudyUpdate(Study):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    # attributes: Optional[List['Attribute']] = []
+
+class StudyCreate(StudyBase):
+    # attributes: Optional[List['Attribute']] = []
+    pass
+
+
+#
+# ............................................ StudyItem Schemas
+#
+class StudyItemBase(BaseModel):
+    description: str
+    study_id: str
+    instrument_id: int
+    position: bool
+    outcome: bool
+    pips: int
+    rrr: float
+    style_id: int
+    description: str
+    date: datetime = None
+
+class StudyItem(StudyItemBase):
+    id: int
+    instrument: Instrument
+    style: Style
+
+    class Config:
+        orm_mode = True
+
+class StudyItemUpdate(StudyItem):
+    study_id: Optional[str] = None
+    instrument_id: Optional[int] = None
+    instrument: Optional[Instrument] = None
+    position: Optional[bool] = True
+    outcome: Optional[bool] = True
+    pips: Optional[int] = 0
+    rrr: Optional[str] = None
+    style_id: Optional[int] = None
+    style: Optional[Style] = None
+    description: Optional[str] = None
+    date: Optional[datetime] = None
+
+class StudyItemCreate(StudyItemBase):
+    pass
+
+#
+# ............................................ StudyItemImage Schemas
+#
+class StudyItemImageBase(BaseModel):
+    study_id: int
+    study: Study
+    alt: str
+    location: str
+    # image: bytes
+
+class StudyItemImage(StudyItemImageBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+class StudyItemImageLocation(BaseModel):
+    id: int
+    study_id: int
+    study: Study
+    alt: str
+    location: str
+
+    class Config:
+        orm_mode = True
+
+class StudyItemImageUpdate(StudyItemImage):
+    study: Optional[Strategy] = None
+    study_id: Optional[int] = None
+    alt: Optional[str] = None
+    location: Optional[str] = None
+    # image: Optional[bytes] = None
+
+class StudyItemImageCreate(StudyItemImageBase):
+    study: Optional[Strategy] = None
+
+
+#
+# ............................................ Attribute Schemas
+#
+
+class AttributeBase(BaseModel):
+    name: str
+    description: str
+    study_id: str
+
+class Attribute(AttributeBase):
+    id: int
+    # study: Study
+    studyitems: List['StudyItem'] = []
+
+    class Config:
+        orm_mode = True
+
+class AttributeUpdate(Attribute):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    study_id: Optional[str] = None
+
+class AttributeCreate(AttributeBase):
+    pass
+
+
+#  ========================================================
+#  ====       FowardRef for self-referencing models    ====
+#  ========================================================
+
+# ========================================================== # StudyWithAttrs
+StudyWithAttrs = ForwardRef('Attribute')
+
+class StudyWithAttrs(Study):
+    attributes: List['Attribute'] = []
+
+StudyWithAttrs.update_forward_refs()
+
+
+# ========================================================== # StudyItemWithAttrs
+StudyItemWithAttrs = ForwardRef('Attribute')
+
+class StudyItemWithAttrs(StudyItem):
+    attributes: List['Attribute'] = []
+
+StudyItemWithAttrs.update_forward_refs()
+
+# ========================================================== # StudyItemUpdateWithAttrs
+StudyItemUpdateWithAttrs = ForwardRef('Attribute')
+
+class StudyItemUpdateWithAttrs(StudyItemUpdate):
+    attributes: Optional[List['Attribute']] = []
+
+StudyItemUpdateWithAttrs.update_forward_refs()
+
+# ========================================================== # StudyItemCreateWithAttrs
+StudyItemCreateWithAttrs = ForwardRef('Attribute')
+
+class StudyItemCreateWithAttrs(StudyItemBase):
+    attributes: Optional[List['Attribute']] = []
+
+StudyItemCreateWithAttrs.update_forward_refs()

@@ -1,0 +1,11 @@
+setup:
+  addons:
+    - plan: heroku-postgresql
+      as: DATABASE
+
+build:
+    docker:
+      # web: ./heroku.Dockerfile
+      web: ./frontend/Dockerfile.nuxt
+      server: ./backend/Dockerfile.django
+

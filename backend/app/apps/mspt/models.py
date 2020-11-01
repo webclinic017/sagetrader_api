@@ -1,9 +1,3 @@
-from typing import (
-    TYPE_CHECKING,
-    Iterable,
-    Optional,
-    Union,
-)
 from uuid import uuid4
 from sqlalchemy import (
     Boolean,
@@ -14,7 +8,6 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     DateTime,
-    LargeBinary,
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -26,7 +19,8 @@ class BaseModel(Base):
     __abstract__ = True
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    description = Column(String)
+    description = Column(Text)
+
 
 class BaseImage(Base):
     __abstract__ = True
@@ -35,58 +29,117 @@ class BaseImage(Base):
     location = Column(String)
     alt = Column(String(128))
 
+
 class StrategyImage(BaseImage):
-    strategy_id = Column(Integer, ForeignKey("strategy.id"))
+    strategy_id = Column(Integer, ForeignKey("strategy.id", ondelete="CASCADE"), nullable=False)
     strategy = relationship("Strategy", backref="images")
 
     def get_ordering_queryset(self):
         return self.strategy.images.all
-    
+
     def __str__(self) -> str:
         return self.strategy.name + " <image alt:> " + self.alt
 
+
 class TradeImage(BaseImage):
-    trade_id = Column(Integer, ForeignKey("trade.id"))
+    trade_id = Column(Integer, ForeignKey("trade.id", ondelete="CASCADE"), nullable=False)
     trade = relationship("Trade", backref="images")
 
     def get_ordering_queryset(self):
         return self.trade.images.all
-    
+
     def __str__(self) -> str:
         return self.trade.name + " <image alt:> " + self.alt
+
 
 class Instrument(BaseModel):
     # trades = relationship("Trade", back_populates="instrument")
     pass
+
 
 class Strategy(BaseModel):
     # images = relationship("StrategyImage")
     # trades = relationship("Trade", back_populates="strategy")
     pass
 
+
 class Style(BaseModel):
     # trades = relationship("Trade", back_populates="style")
     pass
 
+
 class Trade(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(DateTime)
-    instrument_id = Column(Integer, ForeignKey("instrument.id"))
-    instrument = relationship("Instrument", backref="trades")
-    strategy_id = Column(Integer, ForeignKey("strategy.id"))
-    strategy = relationship("Strategy", backref="trades")
-    position = Column(Boolean(), default=True) # True == Long Trade, False == Short Trade
-    outcome = Column(Boolean(), default=False) # True == Pfotibale Trade, False == Losing Trade
-    status = Column(Boolean(), default=False) # True == Running / Open Trade, False == Closed Trade
-    pips = Column(Integer) 
-    rr = Column(Float) 
-    style_id = Column(Integer, ForeignKey("style.id"))
-    style = relationship("Style", backref="trades")
+    instrument_id = Column(Integer, ForeignKey("instrument.id", ondelete="RESTRICT"), nullable=False)
+    instrument = relationship("Instrument", backref="trades", lazy="joined")
+    strategy_id = Column(Integer, ForeignKey("strategy.id", ondelete="RESTRICT"), nullable=False)
+    strategy = relationship("Strategy", backref="trades", lazy="joined")
+    position = Column(Boolean(), default=True)  # True == Long Trade, False == Short Trade
+    outcome = Column(Boolean(), default=False)  # True == Pfotibale Trade, False == Losing Trade
+    status = Column(Boolean(), default=False)  # True == Running / Open Trade, False == Closed Trade
+    pips = Column(Integer)
+    rr = Column(Float)
+    style_id = Column(Integer, ForeignKey("style.id", ondelete="RESTRICT"), nullable=False)
+    style = relationship("Style", backref="trades", lazy="joined")
     description = Column(String)
     # images = relationship("TradeImage", back_populates="image")
+
 
 class TradingPlan(BaseModel):
     pass
 
-class Task(BaseModel): # or Notes same same
+
+class Task(BaseModel):  # or Notes same same
+    pass
+
+
+class StudyItemAttribute(Base):
+    """ManyToManyField linkage between StudyItem and Attribute"""
+    studyitem_id = Column(Integer, ForeignKey("studyitem.id"), primary_key=True)
+    attribute_id = Column(Integer, ForeignKey("attribute.id"), primary_key=True)
+
+
+class Study(BaseModel):
+    pass
+
+
+class StudyItemImage(BaseImage):
+    studyitem_id = Column(Integer, ForeignKey("studyitem.id", ondelete="CASCADE"), nullable=False)
+    studyitem = relationship("StudyItem", backref="images", lazy="joined")
+
+    def get_ordering_queryset(self):
+        return self.studyitem.images.all
+
+    def __str__(self) -> str:
+        return self.studyitem.name + " <image alt:> " + self.alt
+
+
+class StudyItem(BaseModel):
+    study_id = Column(Integer, ForeignKey("study.id", ondelete="RESTRICT"), nullable=False)
+    study = relationship("Study", backref="studyitems", lazy="joined")
+    instrument_id = Column(Integer, ForeignKey("instrument.id", ondelete="RESTRICT"), nullable=True)
+    instrument = relationship("Instrument", backref="studyitems", lazy="joined")
+    position = Column(Boolean(), default=True)  # True == Long Trade, False == Short Trade
+    outcome = Column(Boolean(), default=False)  # True == Pfotibale Trade, False == Losing Trade
+    pips = Column(Integer)
+    rrr = Column(Float)
+    style_id = Column(Integer, ForeignKey("style.id", ondelete="RESTRICT"), nullable=True)
+    style = relationship("Style", backref="studyitems", lazy="joined")
+    date = Column(DateTime)
+    attributes = relationship("Attribute", secondary=lambda: StudyItemAttribute.__table__, lazy="joined")
+
+
+class Attribute(BaseModel):
+    """Additional Features being studied:
+    E.g Study: OrderBlock
+    Attributes: W1 OB, D1 OB, OB MT, OB Open/Close, OB Low/High
+    Study: One SMA
+    Attributes: H1/D1 Config, H4/W1 Config"""
+    study_id = Column(Integer, ForeignKey("study.id", ondelete="RESTRICT"), nullable=False)
+    study = relationship("Study", backref="attributes", lazy="joined")
+    studyitems = relationship("StudyItem", secondary=lambda: StudyItemAttribute.__table__, lazy="joined")
+
+
+class WatchList(BaseModel):
     pass

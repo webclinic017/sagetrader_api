@@ -10,7 +10,6 @@ from app.settings import config
 from app.settings.jwt import create_access_token
 from app.apps.users.models import User as DBUser
 from app.apps.common.schemas.msg import Msg
-from app.apps.common.schemas.token import Token
 from app.apps.users.schemas import User
 from app.utils.token import (
     generate_password_reset_token,
@@ -20,10 +19,16 @@ from app.utils.email import (
     send_reset_password_email,
 )
 
+from app.apps.common.schemas.token import Token
+from app.apps.users.schemas import UserLoginExtras
+
+class TokenWithExtras(Token, UserLoginExtras):
+    pass
+
 router = APIRouter()
 
 
-@router.post("/login/access-token", response_model=Token, tags=["login"])
+@router.post("/login/access-token", response_model=TokenWithExtras, tags=["login"])
 def login_access_token(
     db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ):
@@ -43,6 +48,9 @@ def login_access_token(
             data={"user_id": user.id}, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        # "username": user.username,
     }
 
 

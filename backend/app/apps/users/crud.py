@@ -14,6 +14,8 @@ class CRUDUser(CRUDMIXIN[models.User, schemas.UserCreate, schemas.UserUpdate]):
 
     def create(self, db_session: Session, *, obj_in: schemas.UserCreate) -> models.User:
         db_obj = models.User(
+            first_name=obj_in.first_name,
+            last_name=obj_in.last_name,
             email=obj_in.email,
             hashed_password=get_password_hash(obj_in.password),
             is_superuser=obj_in.is_superuser,

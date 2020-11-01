@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from fastapi.encoders import jsonable_encoder
 
@@ -84,3 +84,81 @@ class CRUDTask(CRUDMIXIN[models.Task, schemas.TaskCreate, schemas.TaskUpdate]):
         return result
 
 task = CRUDTask(models.Task)
+
+
+class CRUDStudy(CRUDMIXIN[models.Study, schemas.StudyCreate, schemas.StudyUpdate]):
+    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.Study]:
+        result = db_session.query(models.Study).filter(models.Study.name == name).first()
+        return result
+
+study = CRUDStudy(models.Study)
+
+class CRUDStudyItem(CRUDMIXIN[models.StudyItem, schemas.StudyItemCreate, schemas.StudyItemUpdate]):
+    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.StudyItem]:
+        result = db_session.query(models.StudyItem).filter(models.StudyItem.name == name).first()
+        return result
+
+    def get_multi_by_study(self, db_session: Session, *, study_id: int, skip=0, limit=100) -> List[models.StudyItem]:
+        return db_session.query(self.model).filter(models.StudyItem.study_id == study_id).offset(skip).limit(limit).all()
+
+    def create(self, db_session: Session, *, obj_in: schemas.StudyItemCreate) -> models.StudyItem:
+        obj_in_data = jsonable_encoder(obj_in)
+        attrs = obj_in_data['attributes']
+        del obj_in_data['attributes']
+        db_obj = self.model(**obj_in_data)
+        # parse id's as integers
+        db_obj.instrument_id = int(db_obj.instrument_id)
+        db_obj.style_id = int(db_obj.style_id)
+        # relationship mode linkages
+        db_obj.instrument = db_session.query(models.Instrument).get(db_obj.instrument_id)
+        db_obj.style = db_session.query(models.Style).get(db_obj.style_id)
+        ###
+        for _attr in attrs:
+            attr = db_session.query(models.Attribute).get(_attr["id"])
+            if not attr in db_obj.attributes:
+                db_obj.attributes.append(attr)
+        ###
+        db_session.add(db_obj)
+        db_session.commit()
+        db_session.refresh(db_obj)
+        return db_obj
+
+    def update( self, db_session: Session, *, db_obj: models.StudyItem, obj_in: schemas.StudyItemUpdate) -> models.StudyItem:
+        obj_data = jsonable_encoder(db_obj)
+        update_data = obj_in.dict(skip_defaults=True)
+        for field in obj_data:
+            if field in update_data:
+                try:
+                    setattr(db_obj, field, update_data[field])
+                except Exception as e:
+                    # Attributes data wil he handles on ite own
+                    pass
+        # reset relationship mode linkages
+        obj_in_data = jsonable_encoder(obj_in)
+        db_obj.instrument = db_session.query(models.Instrument).get(obj_in_data["instrument_id"])
+        db_obj.style = db_session.query(models.Style).get(obj_in_data["style_id"])
+        ##
+        db_obj.attributes.clear()
+        for _attr in obj_in_data['attributes']:
+            attr = db_session.query(models.Attribute).get(_attr["id"])
+            if not attr in obj_data['attributes']:
+                db_obj.attributes.append(attr)
+        ##
+        db_session.add(db_obj)
+        db_session.commit()
+        db_session.refresh(db_obj)
+        return db_obj
+
+studyitem = CRUDStudyItem(models.StudyItem)
+
+
+class CRUDAttribute(CRUDMIXIN[models.Attribute, schemas.AttributeCreate, schemas.AttributeUpdate]):
+    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.Attribute]:
+        result = db_session.query(models.Attribute).filter(models.Attribute.name == name).first()
+        return result
+
+    def get_multi_by_study(self, db_session: Session, *, study_id: int, skip=0, limit=100) -> List[models.Attribute]:
+        return db_session.query(self.model).filter(models.Attribute.study_id == study_id).offset(skip).limit(limit).all()
+
+
+attribute = CRUDAttribute(models.Attribute)

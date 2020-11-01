@@ -8,6 +8,16 @@ from app.apps.users import models, schemas, crud
 from app.settings.database import  get_db
 from app.settings.security import get_current_active_superuser, get_current_active_user
 from app.settings import config
+from datetime import timedelta
+from app.settings.jwt import create_access_token
+
+
+from app.apps.common.schemas.token import Token
+from app.apps.users.schemas import UserLoginExtras
+
+class TokenWithExtras(Token, UserLoginExtras):
+    pass
+
 
 router = APIRouter()
 db_session = Session()
@@ -18,7 +28,7 @@ def read_users(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(get_current_active_superuser),
+    current_user: models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve users.
@@ -27,29 +37,38 @@ def read_users(
     return users
 
 
-@router.post("/", response_model=schemas.User)
+@router.post("/", response_model=TokenWithExtras)
 def create_user(
     *,
     db: Session = Depends(get_db),
-    user_in: schemas.UserCreate,
-    current_user: models.User = Depends(get_current_active_superuser),
+    user_in: schemas.UserCreate
 ):
     """
     Create new user.
     """
+    print(f"Insde post {user_in}")
     user = crud.user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
-            detail="The user with this username already exists in the system.",
+            detail="A user with this username/email already exists in the system.",
         )
     user = crud.user.create(db, obj_in=user_in)
-    if config.EMAILS_ENABLED and user_in.email:
-        send_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
-        )
-    return user
+    # if config.EMAILS_ENABLED and user_in.email:
+    #     send_new_account_email(
+    #         email_to=user_in.email, username=user_in.email, password=user_in.password
+    #     )
 
+    access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return {
+        "access_token": create_access_token(
+            data={"user_id": user.id}, expires_delta=access_token_expires
+        ),
+        "token_type": "bearer",
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        # "username": user.username,
+    }
 
 @router.put("/me", response_model=schemas.User)
 def update_user_me(
@@ -92,7 +111,8 @@ def create_user_open(
     db: Session = Depends(get_db),
     password: str = Body(...),
     email: EmailStr = Body(...),
-    full_name: str = Body(None),
+    first_name: str = Body(None),
+    last_name: str = Body(None),
 ):
     """
     Create new user without the need to be logged in.
@@ -108,9 +128,11 @@ def create_user_open(
             status_code=400,
             detail="The user with this username already exists in the system",
         )
-    user_in = schemas.UserCreate(password=password, email=email, full_name=full_name)
+    user_in = schemas.UserCreate(password=password, email=email, first_name=first_name, last_name=last_name)
     user = crud.user.create(db, obj_in=user_in)
     return user
+
+
 
 
 @router.get("/{user_id}", response_model=schemas.User)
@@ -138,7 +160,7 @@ def update_user(
     db: Session = Depends(get_db),
     user_id: int,
     user_in: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_active_superuser),
+    current_user: models.User = Depends(get_current_active_user),
 ):
     """
     Update a user.
