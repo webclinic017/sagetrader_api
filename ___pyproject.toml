@@ -5,7 +5,7 @@ description = "FelicityLims"
 authors = ["Aurthur Musendame <aurthurmusendame@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9.0"
 fastapi = "^0.61.1"
 uvicorn = "^0.11.8"
 gunicorn = "^20.0.4"
