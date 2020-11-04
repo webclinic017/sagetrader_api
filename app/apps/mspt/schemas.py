@@ -109,16 +109,27 @@ class StyleCreate(StyleBase):
 # ............................................ Trade Schemas
 #
 class TradeBase(BaseModel):
-    instrument_id: int
-    strategy_id: int
-    position: bool
-    outcome: bool
-    status: bool
-    pips: int
-    rr: float
-    style_id: int
-    description: str
-    date: datetime = None
+    instrument_id: Optional[int] = None
+    strategy_id: Optional[int] = None
+    position: Optional[bool] = True
+    outcome: Optional[bool] = True
+    status: Optional[bool] = True
+    pips: Optional[int] = None
+    rr: Optional[float] = None
+    style_id: Optional[int] = None
+    description: Optional[str] = None
+    date: Optional[datetime] = None
+    sl: Optional[int] = None
+    tp: Optional[int] = None
+    tp_reached: Optional[bool] = False
+    tp_exceeded: Optional[bool] = False
+    full_stop: Optional[bool] = False
+    entry_price: Optional[float] = None
+    sl_price: Optional[float] = None
+    tp_price: Optional[float] = None
+    scaled_in: Optional[bool] = False
+    scaled_out: Optional[bool] = False
+    correlated_position: Optional[bool] = False
 
 class Trade(TradeBase):
     id: int
@@ -129,20 +140,8 @@ class Trade(TradeBase):
     class Config:
         orm_mode = True
 
-class TradeUpdate(Trade):
-    instrument_id: Optional[int] = None
-    instrument: Optional[Instrument] = None
-    strategy_id: Optional[int] = None
-    strategy: Optional[Strategy] = None
-    position: Optional[bool] = True
-    outcome: Optional[bool] = True
-    status: Optional[bool] = True
-    pips: Optional[int] = 0
-    rr: Optional[str] = None
-    style_id: Optional[int] = None
-    style: Optional[Style] = None
-    description: Optional[str] = None
-    date: Optional[datetime] = None
+class TradeUpdate(TradeBase):
+    pass
 
 class TradeCreate(TradeBase):
     pass

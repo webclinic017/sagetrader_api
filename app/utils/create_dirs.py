@@ -9,7 +9,8 @@ def deleteFile(file_name:str) -> bool:
     if file_path.is_file():
         file_path.unlink()
         return True
-    return False
+    # Also return true to allow deletion of image reference that no longer exists.
+    return True
 
 
 def resolve_media_dirs_for(target: str) -> str:

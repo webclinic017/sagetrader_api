@@ -76,7 +76,7 @@ class Trade(Base):
     strategy_id = Column(Integer, ForeignKey("strategy.id", ondelete="RESTRICT"), nullable=False)
     strategy = relationship("Strategy", backref="trades", lazy="joined")
     position = Column(Boolean(), default=True)  # True == Long Trade, False == Short Trade
-    outcome = Column(Boolean(), default=False)  # True == Pfotibale Trade, False == Losing Trade
+    outcome = Column(Boolean(), default=False)  # True == Protibale Trade, False == Losing Trade
     status = Column(Boolean(), default=False)  # True == Running / Open Trade, False == Closed Trade
     pips = Column(Integer)
     rr = Column(Float)
@@ -84,7 +84,19 @@ class Trade(Base):
     style = relationship("Style", backref="trades", lazy="joined")
     description = Column(String)
     # images = relationship("TradeImage", back_populates="image")
-
+    sl = Column(Integer) # Slop loss initial
+    tp = Column(Integer) # TP loss initial
+    tp_reached = Column(Boolean(), default=False )# Did trade hit targeted tp
+    tp_exceeded = Column(Boolean(), default=False)  # Did trade run beyond targeted tp
+    full_stop = Column(Boolean(), default=False) # Did trade hit full stop on a loss
+    entry_price = Column(Float)
+    sl_price = Column(Float) # initial
+    tp_price = Column(Float) # initial
+    scaled_in = Column(Boolean(), default=False) # Added to existing positions
+    scaled_out = Column(Boolean(), default=False) # Did you pay the trader
+    # Are you opening a position on a instrument that is correlated  \
+    # to another instrument with an open postion too?
+    correlated_position = Column(Boolean(), default=False)
 
 class TradingPlan(BaseModel):
     pass
