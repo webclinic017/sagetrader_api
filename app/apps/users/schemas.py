@@ -13,27 +13,23 @@ class UserBase(BaseModel):
 
 
 class UserBaseInDB(UserBase):
-    id: int = None
+    uid: int
 
     class Config:
         orm_mode = True
 
-
-# Properties to receive via API on creation
 class UserCreate(UserBase):
     email: str
     password: str
 
-
-# Properties to receive via API on update
 class UserUpdate(UserBaseInDB):
     password: Optional[str] = None
+    email: Optional[str] = None
 
 
 # Additional properties to return via API
 class User(UserBaseInDB):
     pass
-
 
 # Additional properties stored in DB
 class UserInDB(UserBaseInDB):
@@ -41,5 +37,5 @@ class UserInDB(UserBaseInDB):
 
 # Login Exras
 class UserLoginExtras(BaseModel):
-    first_name: str = None
-    last_name: str = None
+    first_name: str
+    last_name: str

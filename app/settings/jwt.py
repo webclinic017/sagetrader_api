@@ -28,4 +28,4 @@ class Token(BaseModel):
 
 
 class TokenPayload(BaseModel):
-    user_id: int = None
+    user_uid: int = None

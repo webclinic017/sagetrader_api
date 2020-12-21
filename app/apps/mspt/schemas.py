@@ -2,24 +2,37 @@ from typing import Optional, List, ForwardRef
 from datetime import datetime
 from pydantic import BaseModel
 
+from app.apps.users import schemas as user_schemas
+
 
 #
 # ............................................ Instrument Schemas
 #
 class InstrumentBase(BaseModel):
     name: str
+    owner_uid: Optional[int]
+    public: bool = False
+    
 
-class Instrument(InstrumentBase):
-    id: int
+class InstrumentInDBBase(InstrumentBase):
+    uid: int
 
     class Config:
         orm_mode = True
+        
+class Instrument(InstrumentInDBBase):
+    owner: user_schemas.User
 
 class InstrumentUpdate(Instrument):
     name: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
 
 class InstrumentCreate(InstrumentBase):
     pass
+
+class InstrumentDelete(InstrumentInDBBase):
+    pass
+    
 
 
 #
@@ -28,18 +41,28 @@ class InstrumentCreate(InstrumentBase):
 class StrategyBase(BaseModel):
     name: str
     description: str
+    owner_uid: Optional[int]
+    public: bool = False
 
-class Strategy(StrategyBase):
-    id: int
+
+class StrategyInDBBase(StrategyBase):
+    uid: int
 
     class Config:
         orm_mode = True
 
+class Strategy(StrategyInDBBase):
+    owner: user_schemas.User
+
 class StrategyUpdate(Strategy):
     name: Optional[str] = None
     description: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
 
 class StrategyCreate(StrategyBase):
+    pass
+
+class StrategyDelete(StrategyInDBBase):
     pass
 
 class StrategyPlusStats(Strategy):
@@ -51,21 +74,21 @@ class StrategyPlusStats(Strategy):
 # ............................................ StrategyImage Schemas
 #
 class StrategyImageBase(BaseModel):
-    strategy_id: int
+    strategy_uid: int
     strategy: Strategy
     alt: str
     location: str
     # image: bytes
 
 class StrategyImage(StrategyImageBase):
-    id: int
+    uid: int
 
     class Config:
         orm_mode = True
 
 class StrategyImageLocation(BaseModel):
-    id: int
-    strategy_id: int
+    uid: int
+    strategy_uid: int
     strategy: Strategy
     alt: str
     location: str
@@ -75,7 +98,7 @@ class StrategyImageLocation(BaseModel):
 
 class StrategyImageUpdate(StrategyImage):
     strategy: Optional[Strategy] = None
-    strategy_id: Optional[int] = None
+    strategy_uid: Optional[int] = None
     alt: Optional[str] = None
     location: Optional[str] = None
     # image: Optional[bytes] = None
@@ -90,18 +113,27 @@ class StrategyImageCreate(StrategyImageBase):
 class StyleBase(BaseModel):
     name: str
     description: str
+    owner_uid: Optional[int] = None
+    public: bool = False
 
-class Style(StyleBase):
-    id: int
+class StyleInDBBase(StyleBase):
+    uid: int
 
     class Config:
         orm_mode = True
+        
+class Style(StyleInDBBase):
+    owner: Optional[user_schemas.User]
 
 class StyleUpdate(Style):
     name: Optional[str] = None
     description: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
 
 class StyleCreate(StyleBase):
+    pass
+
+class StyleDelete(StyleInDBBase):
     pass
 
 
@@ -109,14 +141,16 @@ class StyleCreate(StyleBase):
 # ............................................ Trade Schemas
 #
 class TradeBase(BaseModel):
-    instrument_id: Optional[int] = None
-    strategy_id: Optional[int] = None
+    owner_uid: Optional[int]
+    public: bool = False
+    instrument_uid: Optional[int] = None
+    strategy_uid: Optional[int] = None
     position: Optional[bool] = True
     outcome: Optional[bool] = True
     status: Optional[bool] = True
     pips: Optional[int] = None
     rr: Optional[float] = None
-    style_id: Optional[int] = None
+    style_uid: Optional[int] = None
     description: Optional[str] = None
     date: Optional[datetime] = None
     sl: Optional[int] = None
@@ -131,8 +165,9 @@ class TradeBase(BaseModel):
     scaled_out: Optional[bool] = False
     correlated_position: Optional[bool] = False
 
-class Trade(TradeBase):
-    id: int
+
+class TradeInDBBase(TradeBase):
+    uid: int
     instrument: Instrument
     strategy: Strategy
     style: Style
@@ -140,32 +175,37 @@ class Trade(TradeBase):
     class Config:
         orm_mode = True
 
+class Trade(TradeInDBBase):
+    owner: user_schemas.User
+
 class TradeUpdate(TradeBase):
-    pass
+    uid: int
 
 class TradeCreate(TradeBase):
     pass
 
+class TradeDelete(TradeBase):
+     uid: int
 
 #
-# ............................................ StrategyImage Schemas
+# ............................................ TradeImage Schemas
 #
 class TradeImageBase(BaseModel):
-    trade_id: int
+    trade_uid: int
     trade: Trade
     alt: str
     location: str
     # image: bytes
 
 class TradeImage(TradeImageBase):
-    id: int
+    uid: int
 
     class Config:
         orm_mode = True
 
 class TradeImageLocation(BaseModel):
-    id: int
-    trade_id: int
+    uid: int
+    trade_uid: int
     trade: Trade
     alt: str
     location: str
@@ -175,7 +215,7 @@ class TradeImageLocation(BaseModel):
 
 class TradeImageUpdate(TradeImage):
     trade: Optional[Trade] = None
-    trade_id: Optional[int] = None
+    trade_uid: Optional[int] = None
     alt: Optional[str] = None
     location: Optional[str] = None
     # image: Optional[bytes] = None
@@ -190,18 +230,28 @@ class TradeImageCreate(TradeImageBase):
 class TradingPlanBase(BaseModel):
     name: str
     description: str
+    owner_uid: Optional[int]
+    public: bool = False
 
-class TradingPlan(TradingPlanBase):
-    id: int
+
+class TradingPlanInDBBase(TradingPlanBase):
+    uid: int
 
     class Config:
         orm_mode = True
+        
+class TradingPlan(TradingPlanInDBBase):
+    owner: user_schemas.User
 
 class TradingPlanUpdate(TradingPlan):
     name: Optional[str] = None
     description: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
 
 class TradingPlanCreate(TradingPlanBase):
+    pass
+
+class TradingPlanDelete(TradingPlanInDBBase):
     pass
 
 
@@ -211,20 +261,28 @@ class TradingPlanCreate(TradingPlanBase):
 class TaskBase(BaseModel):
     name: str
     description: str
+    owner_uid: Optional[int]
+    public: bool = False
 
-class Task(TaskBase):
-    id: int
+class TaskInDBBase(TaskBase):
+    uid: int
 
     class Config:
         orm_mode = True
+        
+class Task(TaskInDBBase):
+    owner: user_schemas.User
 
 class TaskUpdate(Task):
     name: Optional[str] = None
     description: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
 
 class TaskCreate(TaskBase):
     pass
 
+class TaskDelete(TaskInDBBase):
+    pass
 
 #
 # ............................................ Study Schemas
@@ -233,19 +291,29 @@ class TaskCreate(TaskBase):
 class StudyBase(BaseModel):
     name: str
     description: str
+    owner_uid: Optional[int]
+    public: bool = False
 
-class Study(StudyBase):
-    id: int
+class StudyInDBBase(StudyBase):
+    uid: int
 
     class Config:
         orm_mode = True
+        
+class Study(StudyInDBBase):
+    owner: user_schemas.User
 
 class StudyUpdate(Study):
     name: Optional[str] = None
     description: Optional[str] = None
+    owner: Optional[user_schemas.User] = None
     # attributes: Optional[List['Attribute']] = []
 
 class StudyCreate(StudyBase):
+    # attributes: Optional[List['Attribute']] = []
+    pass
+
+class StudyDelete(StudyInDBBase):
     # attributes: Optional[List['Attribute']] = []
     pass
 
@@ -255,18 +323,19 @@ class StudyCreate(StudyBase):
 #
 class StudyItemBase(BaseModel):
     description: str
-    study_id: str
-    instrument_id: int
+    study_uid: str
+    instrument_uid: int
     position: bool
     outcome: bool
     pips: int
     rrr: float
-    style_id: int
+    style_uid: int
     description: str
-    date: datetime = None
+    date: datetime
+    public: bool = False
 
 class StudyItem(StudyItemBase):
-    id: int
+    uid: int
     instrument: Instrument
     style: Style
 
@@ -274,14 +343,14 @@ class StudyItem(StudyItemBase):
         orm_mode = True
 
 class StudyItemUpdate(StudyItem):
-    study_id: Optional[str] = None
-    instrument_id: Optional[int] = None
+    study_uid: Optional[str] = None
+    instrument_uid: Optional[int] = None
     instrument: Optional[Instrument] = None
     position: Optional[bool] = True
     outcome: Optional[bool] = True
     pips: Optional[int] = 0
     rrr: Optional[str] = None
-    style_id: Optional[int] = None
+    style_uid: Optional[int] = None
     style: Optional[Style] = None
     description: Optional[str] = None
     date: Optional[datetime] = None
@@ -293,21 +362,21 @@ class StudyItemCreate(StudyItemBase):
 # ............................................ StudyItemImage Schemas
 #
 class StudyItemImageBase(BaseModel):
-    study_id: int
+    study_uid: int
     study: Study
     alt: str
     location: str
     # image: bytes
 
 class StudyItemImage(StudyItemImageBase):
-    id: int
+    uid: int
 
     class Config:
         orm_mode = True
 
 class StudyItemImageLocation(BaseModel):
-    id: int
-    study_id: int
+    uid: int
+    study_uid: int
     study: Study
     alt: str
     location: str
@@ -317,7 +386,7 @@ class StudyItemImageLocation(BaseModel):
 
 class StudyItemImageUpdate(StudyItemImage):
     study: Optional[Strategy] = None
-    study_id: Optional[int] = None
+    study_uid: Optional[int] = None
     alt: Optional[str] = None
     location: Optional[str] = None
     # image: Optional[bytes] = None
@@ -333,10 +402,11 @@ class StudyItemImageCreate(StudyItemImageBase):
 class AttributeBase(BaseModel):
     name: str
     description: str
-    study_id: str
+    study_uid: str
+    public: bool = False
 
 class Attribute(AttributeBase):
-    id: int
+    uid: int
     # study: Study
     studyitems: List['StudyItem'] = []
 
@@ -346,10 +416,22 @@ class Attribute(AttributeBase):
 class AttributeUpdate(Attribute):
     name: Optional[str] = None
     description: Optional[str] = None
-    study_id: Optional[str] = None
+    study_uid: Optional[str] = None
 
 class AttributeCreate(AttributeBase):
     pass
+
+# GenericImageLocation : AllinOne
+class GenericImageLocation(BaseModel):
+    uid: int
+    study_uid: int
+    study: Study
+    strategy_uid: int
+    strategy: Strategy
+    trade_uid: int
+    trade: Trade
+    alt: str
+    location: str
 
 
 #  ========================================================

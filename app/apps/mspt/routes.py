@@ -1,148 +1,91 @@
 from typing import List
+import time
 from fastapi import (
     APIRouter,
-    Body,
-    Request,
     Depends,
     HTTPException,
     File,
     UploadFile,
     Form
 )
-from fastapi.encoders import jsonable_encoder
-from pydantic.networks import EmailStr
 from sqlalchemy.orm import Session
-from pathlib import Path
-from PIL import Image
-import io
 
 from app.apps.mspt import (
-    models,
     schemas,
-    crud
+    crud,
+    utils
 )
 from app.apps.users import models as user_models
 from app.settings.database import get_db
 from app.settings.security import (
-    get_current_active_superuser,
     get_current_active_user
 )
-from app.settings import config
-from app.apps.core.utils.upload_files import save_upload_file
-from app.utils.create_dirs import resolve_media_dirs_for, deleteFile
+from app.utils.create_dirs import resolve_media_dirs_for
 
 router = APIRouter()
 db_session = Session()
 
-
 #
-# ........ File Routes .........
+# ........ Image Uploads Handler .........
 #
 @router.post("/uploads-handler")
 async def handle_file_uploads(
         db: Session = Depends(get_db),
         files: List[UploadFile] = File(...),
-        parent: str = Form(...)
-):
-    parent, parent_id = parent.split('-')
+        parent: str = Form(...),
+        tags: str = Form(...),
+        caption: str = Form(...)
+    ):
+    parent, parent_uid = parent.split('-')
     media_dir = resolve_media_dirs_for(parent)
     images = []
-    if parent == "strategy":
-        for _file in files:
-            image_obj = models.StrategyImage()
-            image_obj.alt = ""
-            image_obj.strategy = db.query(models.Strategy).get(int(parent_id))
-            image_obj.strategy_id = int(parent_id)
-            file_path = media_dir + _file.filename
-            await _file.seek(0)
-            image = await _file.read()
-            _image = Image.open(io.BytesIO(image))
-            _image.save(file_path)
-            # image_obj.image = image
-            image_obj.location = file_path
-            db.add(image_obj)
-            db.commit()
-            db.refresh(image_obj)
-        images: List[schemas.StrategyImageLocation] = db.query(models.StrategyImage).filter_by(
-            strategy_id=int(parent_id)).offset(0).limit(100).all()
-    elif parent == "trade":
-        for _file in files:
-            image_obj = models.TradeImage()
-            image_obj.alt = ""
-            image_obj.trade = db.query(models.Trade).get(int(parent_id))
-            image_obj.trade_id = int(parent_id)
-            file_path = media_dir + _file.filename
-            await _file.seek(0)
-            image = await _file.read()
-            _image = Image.open(io.BytesIO(image))
-            _image.save(file_path)
-            # image_obj.image = image
-            image_obj.location = file_path
-            db.add(image_obj)
-            db.commit()
-            db.refresh(image_obj)
-        images: List[schemas.TradeImageLocation] = db.query(models.TradeImage).filter_by(
-            trade_id=int(parent_id)).offset(0).limit(100).all()
-    elif parent == "studyitem":
-        for _file in files:
-            image_obj = models.StudyItemImage()
-            image_obj.alt = ""
-            image_obj.studyitem = db.query(models.StudyItem).get(int(parent_id))
-            image_obj.studyitem_id = int(parent_id)
-            file_path = media_dir + _file.filename
-            await _file.seek(0)
-            image = await _file.read()
-            _image = Image.open(io.BytesIO(image))
-            _image.save(file_path)
-            # image_obj.image = image
-            image_obj.location = file_path
-            db.add(image_obj)
-            db.commit()
-            db.refresh(image_obj)
-        images: List[schemas.StudyItemImageLocation] = db.query(models.StudyItemImage).filter_by(
-            studyitem_id=int(parent_id)).offset(0).limit(100).all()
 
+    for _file in files:   
+        file_path = media_dir + _file.filename
+        resp = await utils.save_or_upload(
+            file_path=file_path, 
+            img_file=_file, 
+            tags=tags,
+            caption=caption,
+            parent=parent,
+            parent_uid=parent_uid,
+        )
+        utils.persist_image_metadata(
+            db=db, 
+            parent=parent,
+            parent_uid=parent_uid, 
+            location=resp.get('url', None),
+            public_uid = resp.get('public_uid', None),
+            asset_uid = resp.get('asset_uid', None),
+            signature = resp.get('signature', None),
+            version = resp.get('version', None),
+            version_uid = resp.get('version_uid', None)
+        )
+        images = utils.get_image_response(db=db, parent=parent, parent_uid=parent_uid)
     return images
 
 
-@router.get("/fetch-files/{parent_identifier}")
+@router.get("/fetch-files/{parent_uidentifier}")
 async def fetch_files(
         *,
         db: Session = Depends(get_db),
-        parent_identifier: str
-):
-    parent, parent_id = parent_identifier.split('-')
-    media_dir = resolve_media_dirs_for(parent)
-    images = []
-    if parent == "strategy":
-        images: List[schemas.StrategyImageLocation] = db.query(models.StrategyImage).filter_by(
-            strategy_id=int(parent_id)).offset(0).limit(100).all()
-    elif parent == "trade":
-        images: List[schemas.TradeImageLocation] = db.query(models.TradeImage).filter_by(
-            trade_id=int(parent_id)).offset(0).limit(100).all()
-    elif parent == "studyitem":
-        images: List[schemas.StudyItemImageLocation] = db.query(models.StudyItemImage).filter_by(
-            studyitem_id=int(parent_id)).offset(0).limit(100).all()
+        parent_uidentifier: str
+    ):
+    parent, parent_uid = parent_uidentifier.split('-')
+    resolve_media_dirs_for(parent)
+    images = utils.get_image_response(db=db, parent=parent, parent_uid=parent_uid)
     return images
 
 
-@router.delete("/delete-file/{identifier}")
-async def fetch_files(
+@router.delete("/delete-file/{uidentifier}")
+async def delete_files(
         *,
         db: Session = Depends(get_db),
-        identifier: str
-):
-    parent, file_id = identifier.split('-')
-    if parent == "strategy":
-        obj = db.query(models.StrategyImage).get(int(file_id))
-    elif parent == "trade":
-        obj = db.query(models.TradeImage).get(int(file_id))
-
-    if deleteFile(obj.location):
-        db.delete(obj)
-        db.commit()
-
-    return {}
+        uidentifier: str
+    ):
+    parent, file_uid = uidentifier.split('-')
+    response = utils.delete_images(db=db, parent=parent, file_uid=file_uid)
+    return response
 
 
 #
@@ -158,7 +101,7 @@ def read_instruments(
     """
     Retrieve instruments.
     """
-    instruments = crud.instrument.get_multi(db, skip=skip, limit=limit)
+    instruments = crud.instrument.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
     return instruments
 
 
@@ -172,6 +115,7 @@ def create_instrument(
     """
     Create new instrument.
     """
+
     instrument = crud.instrument.get_by_name(db, name=instrument_in.name)
     if instrument:
         raise HTTPException(
@@ -179,22 +123,23 @@ def create_instrument(
             detail="This instrument already exists in the system.",
         )
     instrument_in.name = instrument_in.name.upper()
+    instrument_in.owner_uid = current_user.uid
     instrument = crud.instrument.create(db, obj_in=instrument_in)
     return instrument
 
 
-@router.put("/instrument/{instrument_id}", response_model=schemas.Instrument)
+@router.put("/instrument/{instrument_uid}", response_model=schemas.Instrument)
 def update_instrument(
         *,
         db: Session = Depends(get_db),
-        instrument_id: int,
+        instrument_uid: int,
         instrument_in: schemas.InstrumentUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an instrument.
     """
-    instrument = crud.instrument.get(db, id=instrument_id)
+    instrument = crud.instrument.get(db, uid=instrument_uid)
     if not instrument:
         raise HTTPException(
             status_code=404,
@@ -204,23 +149,23 @@ def update_instrument(
     return instrument
 
 
-@router.delete("/instrument/{instrument_id}", response_model=schemas.Instrument)
+@router.delete("/instrument/{instrument_uid}", response_model=schemas.InstrumentDelete)
 def delete_instrument(
         *,
         db: Session = Depends(get_db),
-        instrument_id: int,
+        instrument_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an instrument.
     """
-    instrument = crud.instrument.get(db, id=instrument_id)
+    instrument = crud.instrument.get(db, uid=instrument_uid)
     if not instrument:
         raise HTTPException(
             status_code=404,
             detail="This instrument does not exist in the system",
         )
-    instrument = crud.instrument.remove(db, id=instrument_id)
+    instrument = crud.instrument.remove(db, uid=instrument_uid)
     return instrument
 
 
@@ -257,22 +202,23 @@ def create_style(
             status_code=400,
             detail="This style already exists in the system.",
         )
+    style_in.owner_uid = None
     style = crud.style.create(db, obj_in=style_in)
     return style
 
 
-@router.put("/style/{style_id}", response_model=schemas.Style)
+@router.put("/style/{style_uid}", response_model=schemas.Style)
 def update_style(
         *,
         db: Session = Depends(get_db),
-        style_id: int,
+        style_uid: int,
         style_in: schemas.StyleUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an style.
     """
-    style = crud.style.get(db, id=style_id)
+    style = crud.style.get(db, uid=style_uid)
     if not style:
         raise HTTPException(
             status_code=404,
@@ -282,23 +228,23 @@ def update_style(
     return style
 
 
-@router.delete("/style/{style_id}", response_model=schemas.Style)
+@router.delete("/style/{style_uid}", response_model=schemas.StyleDelete)
 def delete_style(
         *,
         db: Session = Depends(get_db),
-        style_id: int,
+        style_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an style.
     """
-    style = crud.style.get(db, id=style_id)
+    style = crud.style.get(db, uid=style_uid)
     if not style:
         raise HTTPException(
             status_code=404,
             detail="This style does not exist in the system",
         )
-    style = crud.style.remove(db, id=style_id)
+    style = crud.style.remove(db, uid=style_uid)
     return style
 
 
@@ -316,7 +262,7 @@ def read_strategies(
     Retrieve strategies.
     """
     # Get Stategies
-    strategies = crud.strategy.get_multi(db, skip=skip, limit=limit)
+    strategies = crud.strategy.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
 
     # Get strategy stats
     _strategies: list = []
@@ -335,8 +281,10 @@ def read_strategies(
 
         # Build strategy obj and push
         _strategy = {
-            'id': strategy.id,
+            'uid': strategy.uid,
             'name': strategy.name,
+            'owner_uid': strategy.owner_uid,
+            'owner': strategy.owner,
             'description': strategy.description,
             'total_trades': total_trades,
             'won_trades': won,
@@ -362,6 +310,7 @@ def create_strategy(
             status_code=400,
             detail="This strategy already exists in the system.",
         )
+    strategy_in.owner_uid = current_user.uid
     strategy = crud.strategy.create(db, obj_in=strategy_in)
     #  stats
     won: int = 0
@@ -377,8 +326,10 @@ def create_strategy(
 
     # Build strategy obj and push
     _strategy = {
-        'id': strategy.id,
+        'uid': strategy.uid,
         'name': strategy.name,
+        'owner_uid': strategy.owner_uid,
+        'owner': strategy.owner,
         'description': strategy.description,
         'total_trades': total_trades,
         'won_trades': won,
@@ -388,18 +339,18 @@ def create_strategy(
     return _strategy
 
 
-@router.put("/strategy/{strategy_id}", response_model=schemas.StrategyPlusStats)
+@router.put("/strategy/{strategy_uid}", response_model=schemas.StrategyPlusStats)
 def update_strategy(
         *,
         db: Session = Depends(get_db),
-        strategy_id: int,
+        strategy_uid: int,
         strategy_in: schemas.StrategyUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an strategy.
     """
-    strategy = crud.strategy.get(db, id=strategy_id)
+    strategy = crud.strategy.get(db, uid=strategy_uid)
     if not strategy:
         raise HTTPException(
             status_code=404,
@@ -420,9 +371,11 @@ def update_strategy(
 
     # Build strategy obj and push
     _strategy = {
-        'id': strategy.id,
+        'uid': strategy.uid,
         'name': strategy.name,
         'description': strategy.description,
+        'owner_uid': strategy.owner_uid,
+        'owner': strategy.owner,
         'total_trades': total_trades,
         'won_trades': won,
         'lost_trades': lost,
@@ -431,23 +384,23 @@ def update_strategy(
     return _strategy
 
 
-@router.delete("/strategy/{strategy_id}", response_model=schemas.Strategy)
+@router.delete("/strategy/{strategy_uid}", response_model=schemas.StrategyDelete)
 def delete_strategy(
         *,
         db: Session = Depends(get_db),
-        strategy_id: int,
+        strategy_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an strategy.
     """
-    strategy = crud.strategy.get(db, id=strategy_id)
+    strategy = crud.strategy.get(db, uid=strategy_uid)
     if not strategy:
         raise HTTPException(
             status_code=404,
             detail="This style does not exist in the system",
         )
-    strategy = crud.strategy.remove(db, id=strategy_id)
+    strategy = crud.strategy.remove(db, uid=strategy_uid)
     return strategy
 
 
@@ -465,7 +418,7 @@ def read_trades(
     """
     Retrieve trades.
     """
-    trades = crud.trade.get_multi(db, skip=skip, limit=limit)
+    trades = crud.trade.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
     for trade in trades:
         trade.date = str(trade.date)
     return trades
@@ -481,23 +434,24 @@ def create_trade(
     """
     Create new trade.
     """
+    trade_in.owner_uid = current_user.uid
     trade = crud.trade.create(db, obj_in=trade_in)
     trade.date = str(trade.date)
     return trade
 
 
-@router.put("/trade/{trade_id}", response_model=schemas.Trade)
+@router.put("/trade/{trade_uid}", response_model=schemas.Trade)
 def update_trade(
         *,
         db: Session = Depends(get_db),
-        trade_id: int,
+        trade_uid: int,
         trade_in: schemas.TradeUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an trade.
     """
-    trade = crud.trade.get(db, id=trade_id)
+    trade = crud.trade.get(db, uid=trade_uid)
     if not trade:
         raise HTTPException(
             status_code=404,
@@ -508,23 +462,23 @@ def update_trade(
     return trade
 
 
-@router.delete("/trade/{trade_id}", response_model=schemas.Trade)
+@router.delete("/trade/{trade_uid}", response_model=schemas.TradeDelete)
 def delete_trade(
         *,
         db: Session = Depends(get_db),
-        trade_id: int,
+        trade_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an trade.
     """
-    trade = crud.trade.get(db, id=trade_id)
+    trade = crud.trade.get(db, uid=trade_uid)
     if not trade:
         raise HTTPException(
             status_code=404,
             detail="This trade does not exist in the system",
         )
-    trade = crud.trade.remove(db, id=trade_id)
+    trade = crud.trade.remove(db, uid=trade_uid)
     trade.date = str(trade.date)
     return trade
 
@@ -543,7 +497,7 @@ def read_trading_plans(
     """
     Retrieve trading plans.
     """
-    trading_plans = crud.trading_plan.get_multi(db, skip=skip, limit=limit)
+    trading_plans = crud.trading_plan.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
     return trading_plans
 
 
@@ -557,22 +511,23 @@ def create_trading_plan(
     """
     Create new trading plan.
     """
+    plan_in.owner_uid = current_user.uid
     trading_plan = crud.trading_plan.create(db, obj_in=plan_in)
     return trading_plan
 
 
-@router.put("/trading-plan/{plan_id}", response_model=schemas.TradingPlan)
+@router.put("/trading-plan/{plan_uid}", response_model=schemas.TradingPlan)
 def update_trading_plan(
         *,
         db: Session = Depends(get_db),
-        plan_id: int,
+        plan_uid: int,
         plan_in: schemas.TradingPlanUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an trading_plan.
     """
-    trading_plan = crud.trading_plan.get(db, id=plan_id)
+    trading_plan = crud.trading_plan.get(db, uid=plan_uid)
     if not trading_plan:
         raise HTTPException(
             status_code=404,
@@ -582,23 +537,23 @@ def update_trading_plan(
     return trading_plan
 
 
-@router.delete("/trading-plan/{plan_id}", response_model=schemas.TradingPlan)
+@router.delete("/trading-plan/{plan_uid}", response_model=schemas.TradingPlanDelete)
 def delete_trading_plan(
         *,
         db: Session = Depends(get_db),
-        plan_id: int,
+        plan_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an trading_plan.
     """
-    trading_plan = crud.trading_plan.get(db, id=plan_id)
+    trading_plan = crud.trading_plan.get(db, uid=plan_uid)
     if not trading_plan:
         raise HTTPException(
             status_code=404,
             detail="This trading_plan does not exist in the system",
         )
-    trading_plan = crud.trading_plan.remove(db, id=plan_id)
+    trading_plan = crud.trading_plan.remove(db, uid=plan_uid)
     return trading_plan
 
 
@@ -616,7 +571,8 @@ def read_task(
     """
     Retrieve tasks.
     """
-    tasks = crud.task.get_multi(db, skip=skip, limit=limit)
+    # tasks = crud.task.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    tasks = current_user.get_tasks()
     return tasks
 
 
@@ -630,22 +586,23 @@ def create_task(
     """
     Create new task.
     """
+    task_in.owner_uid = current_user.uid
     task = crud.task.create(db, obj_in=task_in)
     return task
 
 
-@router.put("/task/{task_id}", response_model=schemas.Task)
+@router.put("/task/{task_uid}", response_model=schemas.Task)
 def update_task(
         *,
         db: Session = Depends(get_db),
-        task_id: int,
+        task_uid: int,
         task_in: schemas.TaskUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an task.
     """
-    task = crud.task.get(db, id=task_id)
+    task = crud.task.get(db, uid=task_uid)
     if not task:
         raise HTTPException(
             status_code=404,
@@ -655,23 +612,23 @@ def update_task(
     return task
 
 
-@router.delete("/task/{task_id}", response_model=schemas.Task)
+@router.delete("/task/{task_uid}", response_model=schemas.TaskDelete)
 def delete_task(
         *,
         db: Session = Depends(get_db),
-        task_id: int,
+        task_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an task.
     """
-    task = crud.task.get(db, id=task_id)
+    task = crud.task.get(db, uid=task_uid)
     if not task:
         raise HTTPException(
             status_code=404,
             detail="This task does not exist in the system",
         )
-    task = crud.task.remove(db, id=task_id)
+    task = crud.task.remove(db, uid=task_uid)
     return task
 
 
@@ -689,7 +646,7 @@ def read_study(
     """
     Retrieve studies.
     """
-    studies = crud.study.get_multi(db, skip=skip, limit=limit)
+    studies = crud.study.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
     return studies
 
 
@@ -703,22 +660,23 @@ def create_study(
     """
     Create new study.
     """
+    study_in.owner_uid = current_user.uid
     study = crud.study.create(db, obj_in=study_in)
     return study
 
 
-@router.put("/study/{study_id}", response_model=schemas.Study)
+@router.put("/study/{study_uid}", response_model=schemas.Study)
 def update_study(
         *,
         db: Session = Depends(get_db),
-        study_id: int,
+        study_uid: int,
         study_in: schemas.StudyUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an study.
     """
-    study = crud.study.get(db, id=study_id)
+    study = crud.study.get(db, uid=study_uid)
     if not study:
         raise HTTPException(
             status_code=404,
@@ -728,23 +686,23 @@ def update_study(
     return study
 
 
-@router.delete("/study/{study_id}", response_model=schemas.Study)
+@router.delete("/study/{study_uid}", response_model=schemas.StudyDelete)
 def delete_study(
         *,
         db: Session = Depends(get_db),
-        study_id: int,
+        study_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an study.
     """
-    study = crud.study.get(db, id=study_id)
+    study = crud.study.get(db, uid=study_uid)
     if not study:
         raise HTTPException(
             status_code=404,
             detail="This study does not exist in the system",
         )
-    study = crud.study.remove(db, id=study_id)
+    study = crud.study.remove(db, uid=study_uid)
     return study
 
 
@@ -752,10 +710,11 @@ def delete_study(
 # ........ Study Item Routes .........
 #
 
-@router.get("/studyitems/{study_id}", response_model=List[schemas.StudyItemWithAttrs])
+@router.get("/studyitems/{study_uid}", response_model=List[schemas.StudyItemWithAttrs])
 def read_studyitems(
+        *,
         db: Session = Depends(get_db),
-        study_id: int = None,
+        study_uid: int,
         skip: int = 0,
         limit: int = 100,
         current_user: user_models.User = Depends(get_current_active_user),
@@ -763,7 +722,7 @@ def read_studyitems(
     """
     Retrieve studyitems.
     """
-    studies = crud.studyitem.get_multi_by_study(db, study_id=study_id, skip=skip, limit=limit)
+    studies = crud.studyitem.get_multi_by_study(db, study_uid=study_uid, skip=skip, limit=limit)
     # for study in studies:
     #     study.date = str(study.date)
     return studies
@@ -784,18 +743,18 @@ def create_studyitems(
     return studyitem
 
 
-@router.put("/studyitems/{studyitem_id}", response_model=schemas.StudyItemWithAttrs)
+@router.put("/studyitems/{studyitem_uid}", response_model=schemas.StudyItemWithAttrs)
 def update_studyitems(
         *,
         db: Session = Depends(get_db),
-        studyitem_id: int,
+        studyitem_uid: int,
         studyitem_in: schemas.StudyItemUpdateWithAttrs,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an studyitems.
     """
-    studyitem = crud.studyitem.get(db, id=studyitem_id)
+    studyitem = crud.studyitem.get(db, uid=studyitem_uid)
     if not studyitem:
         raise HTTPException(
             status_code=404,
@@ -807,23 +766,23 @@ def update_studyitems(
     return studyitem
 
 
-@router.delete("/studyitems/{studyitem_id}", response_model=schemas.StudyItem)
+@router.delete("/studyitems/{studyitem_uid}", response_model=schemas.StudyItem)
 def delete_studyitems(
         *,
         db: Session = Depends(get_db),
-        studyitem_id: int,
+        studyitem_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an studyitem.
     """
-    studyitem = crud.studyitem.get(db, id=studyitem_id)
+    studyitem = crud.studyitem.get(db, uid=studyitem_uid)
     if not studyitem:
         raise HTTPException(
             status_code=404,
             detail="This studyitem does not exist in the system",
         )
-    studyitem = crud.studyitem.remove(db, id=studyitem_id)
+    studyitem = crud.studyitem.remove(db, uid=studyitem_uid)
     return studyitem
 
 
@@ -833,10 +792,11 @@ def delete_studyitems(
 # ........ Attribute Routes .........
 #
 
-@router.get("/attribute/{study_id}", response_model=List[schemas.Attribute])
+@router.get("/attribute/{study_uid}", response_model=List[schemas.Attribute])
 def read_attributes(
+        *,
         db: Session = Depends(get_db),
-        study_id: int = None,
+        study_uid: int,
         skip: int = 0,
         limit: int = 100,
         current_user: user_models.User = Depends(get_current_active_user),
@@ -844,7 +804,7 @@ def read_attributes(
     """
     Retrieve Attrs.
     """
-    attrs = crud.attribute.get_multi_by_study(db, study_id=study_id, skip=skip, limit=limit)
+    attrs = crud.attribute.get_multi_by_study(db, study_uid=study_uid, skip=skip, limit=limit)
     return attrs
 
 
@@ -862,18 +822,18 @@ def create_attribute(
     return attrs
 
 
-@router.put("/attribute/{attr_id}", response_model=schemas.Attribute)
+@router.put("/attribute/{attr_uid}", response_model=schemas.Attribute)
 def update_attribute(
         *,
         db: Session = Depends(get_db),
-        attr_id: int,
+        attr_uid: int,
         attr_in: schemas.AttributeUpdate,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Update an attr.
     """
-    attr = crud.attribute.get(db, id=attr_id)
+    attr = crud.attribute.get(db, uid=attr_uid)
     if not attr:
         raise HTTPException(
             status_code=404,
@@ -883,23 +843,23 @@ def update_attribute(
     return attr
 
 
-@router.delete("/attribute/{attr_id}", response_model=schemas.Attribute)
+@router.delete("/attribute/{attr_uid}", response_model=schemas.Attribute)
 def delete_attribute(
         *,
         db: Session = Depends(get_db),
-        attr_id: int,
+        attr_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Delete an attr.
     """
-    attr = crud.attribute.get(db, id=attr_id)
+    attr = crud.attribute.get(db, uid=attr_uid)
     if not attr:
         raise HTTPException(
             status_code=404,
             detail="This attribute does not exist in the system",
         )
-    attr = crud.attribute.remove(db, id=attr_id)
+    attr = crud.attribute.remove(db, uid=attr_uid)
     return attr
 
 

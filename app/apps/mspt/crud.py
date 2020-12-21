@@ -35,14 +35,14 @@ class CRUDTrade(CRUDMIXIN[models.Trade, schemas.TradeCreate, schemas.TradeUpdate
     def create(self, db_session: Session, *, obj_in: schemas.TradeCreate) -> models.Trade:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)
-        # parse id's as integers
-        db_obj.instrument_id = int(db_obj.instrument_id)
-        db_obj.strategy_id = int(db_obj.strategy_id)
-        db_obj.style_id = int(db_obj.style_id)
+        # parse uid's as integers
+        db_obj.instrument_uid = int(db_obj.instrument_uid)
+        db_obj.strategy_uid = int(db_obj.strategy_uid)
+        db_obj.style_uid = int(db_obj.style_uid)
         # relationship mode linkages
-        db_obj.instrument = db_session.query(models.Instrument).get(db_obj.instrument_id)
-        db_obj.strategy = db_session.query(models.Strategy).get(db_obj.strategy_id)
-        db_obj.style = db_session.query(models.Style).get(db_obj.style_id)
+        db_obj.instrument = db_session.query(models.Instrument).get(db_obj.instrument_uid)
+        db_obj.strategy = db_session.query(models.Strategy).get(db_obj.strategy_uid)
+        db_obj.style = db_session.query(models.Style).get(db_obj.style_uid)
         ###
         db_session.add(db_obj)
         db_session.commit()
@@ -59,9 +59,9 @@ class CRUDTrade(CRUDMIXIN[models.Trade, schemas.TradeCreate, schemas.TradeUpdate
                 setattr(db_obj, field, update_data[field])
         # reset relationship mode linkages
         obj_in_data = jsonable_encoder(obj_in)
-        db_obj.instrument = db_session.query(models.Instrument).get(obj_in_data["instrument_id"])
-        db_obj.strategy = db_session.query(models.Strategy).get(obj_in_data["strategy_id"])
-        db_obj.style = db_session.query(models.Style).get(obj_in_data["style_id"])
+        db_obj.instrument = db_session.query(models.Instrument).get(obj_in_data["instrument_uid"])
+        db_obj.strategy = db_session.query(models.Strategy).get(obj_in_data["strategy_uid"])
+        db_obj.style = db_session.query(models.Style).get(obj_in_data["style_uid"])
         ##
         db_session.add(db_obj)
         db_session.commit()
@@ -98,23 +98,23 @@ class CRUDStudyItem(CRUDMIXIN[models.StudyItem, schemas.StudyItemCreate, schemas
         result = db_session.query(models.StudyItem).filter(models.StudyItem.name == name).first()
         return result
 
-    def get_multi_by_study(self, db_session: Session, *, study_id: int, skip=0, limit=100) -> List[models.StudyItem]:
-        return db_session.query(self.model).filter(models.StudyItem.study_id == study_id).offset(skip).limit(limit).all()
+    def get_multi_by_study(self, db_session: Session, *, study_uid: int, skip=0, limit=100) -> List[models.StudyItem]:
+        return db_session.query(self.model).filter(models.StudyItem.study_uid == study_uid).offset(skip).limit(limit).all()
 
-    def create(self, db_session: Session, *, obj_in: schemas.StudyItemCreate) -> models.StudyItem:
+    def create(self, db_session: Session, *, obj_in: schemas.StudyItemCreateWithAttrs) -> models.StudyItem:
         obj_in_data = jsonable_encoder(obj_in)
         attrs = obj_in_data['attributes']
         del obj_in_data['attributes']
         db_obj = self.model(**obj_in_data)
-        # parse id's as integers
-        db_obj.instrument_id = int(db_obj.instrument_id)
-        db_obj.style_id = int(db_obj.style_id)
+        # parse uid's as integers
+        db_obj.instrument_uid = int(db_obj.instrument_uid)
+        db_obj.style_uid = int(db_obj.style_uid)
         # relationship mode linkages
-        db_obj.instrument = db_session.query(models.Instrument).get(db_obj.instrument_id)
-        db_obj.style = db_session.query(models.Style).get(db_obj.style_id)
+        db_obj.instrument = db_session.query(models.Instrument).get(db_obj.instrument_uid)
+        db_obj.style = db_session.query(models.Style).get(db_obj.style_uid)
         ###
         for _attr in attrs:
-            attr = db_session.query(models.Attribute).get(_attr["id"])
+            attr = db_session.query(models.Attribute).get(_attr["uid"])
             if not attr in db_obj.attributes:
                 db_obj.attributes.append(attr)
         ###
@@ -135,12 +135,12 @@ class CRUDStudyItem(CRUDMIXIN[models.StudyItem, schemas.StudyItemCreate, schemas
                     pass
         # reset relationship mode linkages
         obj_in_data = jsonable_encoder(obj_in)
-        db_obj.instrument = db_session.query(models.Instrument).get(obj_in_data["instrument_id"])
-        db_obj.style = db_session.query(models.Style).get(obj_in_data["style_id"])
+        db_obj.instrument = db_session.query(models.Instrument).get(obj_in_data["instrument_uid"])
+        db_obj.style = db_session.query(models.Style).get(obj_in_data["style_uid"])
         ##
         db_obj.attributes.clear()
         for _attr in obj_in_data['attributes']:
-            attr = db_session.query(models.Attribute).get(_attr["id"])
+            attr = db_session.query(models.Attribute).get(_attr["uid"])
             if not attr in obj_data['attributes']:
                 db_obj.attributes.append(attr)
         ##
@@ -157,8 +157,8 @@ class CRUDAttribute(CRUDMIXIN[models.Attribute, schemas.AttributeCreate, schemas
         result = db_session.query(models.Attribute).filter(models.Attribute.name == name).first()
         return result
 
-    def get_multi_by_study(self, db_session: Session, *, study_id: int, skip=0, limit=100) -> List[models.Attribute]:
-        return db_session.query(self.model).filter(models.Attribute.study_id == study_id).offset(skip).limit(limit).all()
+    def get_multi_by_study(self, db_session: Session, *, study_uid: int, skip=0, limit=100) -> List[models.Attribute]:
+        return db_session.query(self.model).filter(models.Attribute.study_uid == study_uid).offset(skip).limit(limit).all()
 
 
 attribute = CRUDAttribute(models.Attribute)

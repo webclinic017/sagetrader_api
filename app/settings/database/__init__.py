@@ -7,5 +7,5 @@ from .db import (
 )
 
 from .base_class import  (
-    Base
+    DBModel
 )

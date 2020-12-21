@@ -62,7 +62,7 @@ def create_user(
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {
         "access_token": create_access_token(
-            data={"user_id": user.id}, expires_delta=access_token_expires
+            data={"user_uid": user.uid}, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
         "first_name": user.first_name,
@@ -135,16 +135,16 @@ def create_user_open(
 
 
 
-@router.get("/{user_id}", response_model=schemas.User)
+@router.get("/{user_uid}", response_model=schemas.User)
 def read_user_by_id(
-    user_id: int,
+    user_uid: int,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
     """
-    Get a specific user by id.
+    Get a specific user by uid.
     """
-    user = crud.user.get(db, id=user_id)
+    user = crud.user.get(db, uid=user_uid)
     if user == current_user:
         return user
     if not crud.user.is_superuser(current_user):

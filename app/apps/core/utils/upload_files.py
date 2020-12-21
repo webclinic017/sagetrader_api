@@ -7,24 +7,21 @@ from fastapi import UploadFile
 
 filename = uuid.uuid4().hex
 
-def save_upload_file(upload_file: UploadFile, destination: Path) -> None:
+def save_upload_file(upload_file: UploadFile, destination: Path) -> Dict:
     try:
-        uploaded_file.file.seek(0) 
+        upload_file.file.seek(0) 
         with destination.open("wb+") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
     finally:
         upload_file.file.close()
     
-    return {
-        "filename": upload_file.filename,
-        "path": Path(uploaded_file.name)
-    }
+    return { "filename": upload_file.filename, "path": Path(upload_file.name)}
 
 
 def save_upload_file_tmp(upload_file: UploadFile) -> Path:
     try:
         suffix = Path(upload_file.filename).suffix
-        uploaded_file.file.seek(0) 
+        upload_file.file.seek(0) 
         with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             shutil.copyfileobj(upload_file.file, tmp)
             tmp_path = Path(tmp.name)

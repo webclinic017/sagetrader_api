@@ -9,7 +9,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.settings.config import SQLALCHEMY_DATABASE_URI
-from app.settings.alembic_base import Base
+from app.settings.alembic_base import DBModel
 
 
 # this is the Alembic Config object, which provides
@@ -29,7 +29,7 @@ fileConfig(config.config_file_name)
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 
-target_metadata =  Base.metadata # noqa
+target_metadata =  DBModel.metadata # noqa
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
