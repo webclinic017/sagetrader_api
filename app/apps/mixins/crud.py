@@ -1,15 +1,22 @@
-from typing import List, Optional, Generic, TypeVar, Type
+from typing import List, Optional, Generic, TypeVar, Type, Any, Dict
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.settings.database import DBModel
+from app.settings.database.sqlalchemy_filters.pagination2 import apply_pagination
+from app.settings.database.sqlalchemy_filters.filters import apply_filters
+from app.settings.database.sqlalchemy_filters.sorting import apply_sort
+
 
 ModelType = TypeVar("ModelType", bound=DBModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
+
+def _maintain_url_params(shared: bool, sort_on: str, sort_order: str):
+    return f"&shared={shared}&sort_on={sort_on}&sort_order={sort_order}"
 
 class CRUDMIXIN(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]):
@@ -34,6 +41,43 @@ class CRUDMIXIN(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def get_multi_for_user(self, db_session: Session, *, owner_uid: int, skip=0, limit=100) -> List[ModelType]:
         return db_session.query(self.model).filter(self.model.owner_uid == owner_uid).offset(skip).limit(limit).all()
+
+    def get_multi_shared(self, db_session: Session, *, public: bool, skip=0, limit=100) -> List[ModelType]:
+        return db_session.query(self.model).filter(self.model.public == public).offset(skip).limit(limit).all()
+    
+    def get_paginated_multi(self, db_session: Session, *, request, page=1, size=10, shared=False, owner_uid=None, sort_on='uid', sort_order='asc') -> Dict[str, Any]:
+        extra_params = _maintain_url_params(shared=shared, sort_on=sort_on, sort_order=sort_order)
+        qry = db_session.query(self.model)
+        
+        # filter
+        filter_spec = []
+        
+        # if shared: get shared irregardless of owner uid: get everything shared
+        if shared:
+            filter_spec.append({'field': 'public', 'op': '==', 'value': shared})
+        
+        # else: get for user whether shared or not
+        if not shared and owner_uid:
+            filter_spec.append({'field': 'owner_uid', 'op': '==', 'value': owner_uid})
+
+        qry = apply_filters(qry, filter_spec)
+        
+        # sort
+        sort_spec = [{'field': sort_on, 'direction': sort_order}]
+        qry = apply_sort(qry, sort_spec)
+                
+        # Paginate        
+        paginated = apply_pagination(qry, page_number=page, page_size=size, request=request)
+        
+        paginated['items'] = paginated['items'].all() # query
+        
+        prev_url = paginated['prev_url']
+        next_url = paginated['next_url']
+        paginated['prev_url'] = f"{prev_url}{extra_params}" if prev_url else None
+        paginated['next_url'] = f"{next_url}{extra_params}" if next_url else None
+                
+        return paginated
+        
 
     def create(self, db_session: Session, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)

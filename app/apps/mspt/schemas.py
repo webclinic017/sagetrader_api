@@ -1,8 +1,17 @@
-from typing import Optional, List, ForwardRef
+from typing import Optional, List, ForwardRef, Any
 from datetime import datetime
 from pydantic import BaseModel
 
 from app.apps.users import schemas as user_schemas
+
+
+class BasePaginated(BaseModel):
+    count: int
+    page: int
+    pages: int
+    size: int
+    next_url: Optional[str] = None
+    prev_url: Optional[str] = None
 
 
 #
@@ -34,6 +43,8 @@ class InstrumentDelete(InstrumentInDBBase):
     pass
     
 
+class InstrumentPaginated(BasePaginated):
+    items: List[Instrument]
 
 #
 # ............................................ Strategy Schemas
@@ -69,6 +80,9 @@ class StrategyPlusStats(Strategy):
     total_trades: int
     won_trades: int
     lost_trades: int
+    
+class StrategyPlusStatsPaginated(BasePaginated):
+    items: List[StrategyPlusStats]
 
 #
 # ............................................ StrategyImage Schemas
@@ -186,6 +200,9 @@ class TradeCreate(TradeBase):
 
 class TradeDelete(TradeBase):
      uid: int
+     
+class TradePaginated(BasePaginated):
+    items: List[Trade]
 
 #
 # ............................................ TradeImage Schemas
@@ -255,6 +272,11 @@ class TradingPlanDelete(TradingPlanInDBBase):
     pass
 
 
+
+class TradingPlanPaginated(BasePaginated):
+    items: List[TradingPlan]
+
+
 #
 # ............................................ Tasks/Notes Schemas
 #
@@ -283,6 +305,9 @@ class TaskCreate(TaskBase):
 
 class TaskDelete(TaskInDBBase):
     pass
+
+class TaskPaginated(BasePaginated):
+    items: List[Task]
 
 #
 # ............................................ Study Schemas
@@ -318,6 +343,9 @@ class StudyDelete(StudyInDBBase):
     pass
 
 
+class StudyPaginated(BasePaginated):
+    items: List[Study]
+    
 #
 # ............................................ StudyItem Schemas
 #
@@ -357,6 +385,10 @@ class StudyItemUpdate(StudyItem):
 
 class StudyItemCreate(StudyItemBase):
     pass
+
+
+class StudyItemPaginated(BasePaginated):
+    items: List[StudyItem]
 
 #
 # ............................................ StudyItemImage Schemas
@@ -449,6 +481,12 @@ StudyWithAttrs.update_forward_refs()
 
 # ========================================================== # StudyItemWithAttrs
 StudyItemWithAttrs = ForwardRef('Attribute')
+
+
+
+class StudyItemWithAttrsPaginated(BasePaginated):
+    items: List[StudyItemWithAttrs]
+
 
 class StudyItemWithAttrs(StudyItem):
     attributes: List['Attribute'] = []

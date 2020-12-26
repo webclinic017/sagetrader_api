@@ -6,7 +6,8 @@ from fastapi import (
     HTTPException,
     File,
     UploadFile,
-    Form
+    Form,
+    Query,
 )
 from sqlalchemy.orm import Session
 
@@ -116,7 +117,7 @@ def create_instrument(
     Create new instrument.
     """
 
-    instrument = crud.instrument.get_by_name(db, name=instrument_in.name)
+    instrument = crud.instrument.get_by_name_owner(db, name=instrument_in.name, owner_uid=current_user.uid)
     if instrument:
         raise HTTPException(
             status_code=400,
@@ -256,13 +257,17 @@ def read_strategies(
         db: Session = Depends(get_db),
         skip: int = 0,
         limit: int = 100,
+        shared: bool = Query(False),
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve strategies.
     """
-    # Get Stategies
-    strategies = crud.strategy.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    
+    if not shared:
+        strategies = crud.strategy.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    else:
+        strategies = crud.strategy.get_multi_shared(db, public=shared, skip=skip, limit=limit)
 
     # Get strategy stats
     _strategies: list = []
@@ -289,6 +294,7 @@ def read_strategies(
             'total_trades': total_trades,
             'won_trades': won,
             'lost_trades': lost,
+            'public': strategy.public,
         }
         _strategies.append(_strategy)
     return _strategies
@@ -304,7 +310,7 @@ def create_strategy(
     """
     Create new strategy.
     """
-    strategy = crud.strategy.get_by_name(db, name=strategy_in.name)
+    strategy = crud.strategy.get_by_name_owner(db, name=strategy_in.name, owner_uid=current_user.uid)
     if strategy:
         raise HTTPException(
             status_code=400,
@@ -335,6 +341,7 @@ def create_strategy(
         'won_trades': won,
         'lost_trades': lost,
         'win_rate': win_rate,
+        'public': strategy.public,
     }
     return _strategy
 
@@ -380,6 +387,7 @@ def update_strategy(
         'won_trades': won,
         'lost_trades': lost,
         'win_rate': win_rate,
+        'public': strategy.public,
     }
     return _strategy
 
@@ -413,12 +421,17 @@ def read_trades(
         db: Session = Depends(get_db),
         skip: int = 0,
         limit: int = 100,
+        shared: bool = Query(False),
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve trades.
     """
-    trades = crud.trade.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    if not shared:
+        trades = crud.trade.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    else:
+        trades = crud.trade.get_multi_shared(db, public=shared, skip=skip, limit=limit)
+        
     for trade in trades:
         trade.date = str(trade.date)
     return trades
@@ -492,12 +505,16 @@ def read_trading_plans(
         db: Session = Depends(get_db),
         skip: int = 0,
         limit: int = 100,
+        shared: bool = Query(False),
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve trading plans.
     """
-    trading_plans = crud.trading_plan.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    if not shared:
+        trading_plans = crud.trading_plan.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    else:
+        trading_plans = crud.trading_plan.get_multi_shared(db, public=shared, skip=skip, limit=limit)
     return trading_plans
 
 
@@ -511,6 +528,12 @@ def create_trading_plan(
     """
     Create new trading plan.
     """
+    t_plan = crud.trading_plan.get_by_name_owner(db, name=plan_in.name, owner_uid=current_user.uid)
+    if t_plan:
+        raise HTTPException(
+            status_code=400,
+            detail="A trading plan with this name already exists",
+        )
     plan_in.owner_uid = current_user.uid
     trading_plan = crud.trading_plan.create(db, obj_in=plan_in)
     return trading_plan
@@ -641,12 +664,16 @@ def read_study(
         db: Session = Depends(get_db),
         skip: int = 0,
         limit: int = 100,
+        shared: bool = Query(False),
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve studies.
     """
-    studies = crud.study.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    if not shared:
+        studies = crud.study.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
+    else:
+        studies = crud.study.get_multi_shared(db, public=shared, skip=skip, limit=limit)
     return studies
 
 

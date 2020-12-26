@@ -50,7 +50,9 @@ def login_access_token(
         "token_type": "bearer",
         "first_name": user.first_name,
         "last_name": user.last_name,
-        # "username": user.username,
+        "uid": user.uid,
+        "is_active": user.is_active,
+        "is_superuser": user.is_superuser,
     }
 
 

@@ -9,9 +9,9 @@ from app.apps.mixins.crud import CRUDMIXIN
 
 
 class CRUDInstrument(CRUDMIXIN[models.Instrument, schemas.InstrumentCreate, schemas.InstrumentUpdate]):
-    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.Instrument]:
+    def get_by_name_owner(self, db_session: Session, *, name: str, owner_uid: int) -> Optional[models.Instrument]:
         name = name.upper()
-        result = db_session.query(models.Instrument).filter(models.Instrument.name == name).first()
+        result = db_session.query(models.Instrument).filter(models.Instrument.name == name, models.Instrument.owner_uid == owner_uid).first()
         return result
 
 instrument = CRUDInstrument(models.Instrument)
@@ -24,8 +24,8 @@ class CRUDStyle(CRUDMIXIN[models.Style, schemas.StyleCreate, schemas.StyleUpdate
 style = CRUDStyle(models.Style)
 
 class CRUDStrategy(CRUDMIXIN[models.Strategy, schemas.StrategyCreate, schemas.StrategyUpdate]):
-    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.Strategy]:
-        result = db_session.query(models.Strategy).filter(models.Strategy.name == name).first()
+    def get_by_name_owner(self, db_session: Session, *, name:str, owner_uid:int) -> Optional[models.Strategy]:
+        result = db_session.query(models.Strategy).filter(models.Strategy.name == name, models.Strategy.owner_uid == owner_uid).first()
         return result
 
 strategy = CRUDStrategy(models.Strategy)
@@ -71,8 +71,8 @@ class CRUDTrade(CRUDMIXIN[models.Trade, schemas.TradeCreate, schemas.TradeUpdate
 trade = CRUDTrade(models.Trade)
 
 class CRUDTradingPlan(CRUDMIXIN[models.TradingPlan, schemas.TradingPlanCreate, schemas.TradingPlanUpdate]):
-    def get_by_name(self, db_session: Session, *, name: str) -> Optional[models.TradingPlan]:
-        result = db_session.query(models.TradingPlan).filter(models.TradingPlan.name == name).first()
+    def get_by_name_owner(self, db_session: Session, *, name: str, owner_uid:int) -> Optional[models.TradingPlan]:
+        result = db_session.query(models.TradingPlan).filter(models.TradingPlan.name == name, models.TradingPlan.owner_uid == owner_uid).first()
         return result
 
 trading_plan = CRUDTradingPlan(models.TradingPlan)

@@ -37,5 +37,8 @@ class UserInDB(UserBaseInDB):
 
 # Login Exras
 class UserLoginExtras(BaseModel):
+    uid: int
     first_name: str
     last_name: str
+    is_active: bool
+    is_superuser: bool

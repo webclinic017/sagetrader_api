@@ -46,7 +46,6 @@ def create_user(
     """
     Create new user.
     """
-    print(f"Insde post {user_in}")
     user = crud.user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
@@ -67,7 +66,9 @@ def create_user(
         "token_type": "bearer",
         "first_name": user.first_name,
         "last_name": user.last_name,
-        # "username": user.username,
+        "uid": user.uid,
+        "is_active": user.is_active,
+        "is_superuser": user.is_superuser,
     }
 
 @router.put("/me", response_model=schemas.User)
