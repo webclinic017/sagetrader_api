@@ -29,7 +29,7 @@ db_session = Session()
 
 
 @router.get("/study", response_model=schemas.StudyPaginated)
-def read_study(
+def read_studies(
         *,
         db: Session = Depends(get_db),
         request: Request,
@@ -127,6 +127,7 @@ def read_study_items(
         shared: bool = False,
         sort_on: str = 'uid',
         sort_order: str = 'desc',
+        study_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
@@ -140,7 +141,8 @@ def read_study_items(
         owner_uid=current_user.uid,
         shared=shared,
         sort_on=sort_on,        
-        sort_order=sort_order
+        sort_order=sort_order,
+        other_filters=[{'field': 'study_uid', 'op': '==', 'value': study_uid}] if study_uid else []
     )
     return s_items
 

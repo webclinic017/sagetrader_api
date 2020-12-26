@@ -45,7 +45,7 @@ class CRUDMIXIN(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def get_multi_shared(self, db_session: Session, *, public: bool, skip=0, limit=100) -> List[ModelType]:
         return db_session.query(self.model).filter(self.model.public == public).offset(skip).limit(limit).all()
     
-    def get_paginated_multi(self, db_session: Session, *, request, page=1, size=10, shared=False, owner_uid=None, sort_on='uid', sort_order='asc') -> Dict[str, Any]:
+    def get_paginated_multi(self, db_session: Session, *, request, page=1, size=10, shared=False, owner_uid=None, sort_on='uid', sort_order='asc', other_filters = None) -> Dict[str, Any]:
         extra_params = _maintain_url_params(shared=shared, sort_on=sort_on, sort_order=sort_order)
         qry = db_session.query(self.model)
         
@@ -59,6 +59,10 @@ class CRUDMIXIN(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         # else: get for user whether shared or not
         if not shared and owner_uid:
             filter_spec.append({'field': 'owner_uid', 'op': '==', 'value': owner_uid})
+            
+        if other_filters: # [{'field': 'xxxxx', 'op': '==', 'value': 'xxx}]
+            for filter in other_filters:
+                filter_spec.append(filter)
 
         qry = apply_filters(qry, filter_spec)
         
