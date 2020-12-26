@@ -3,6 +3,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Request
 )
 from sqlalchemy.orm import Session
 
@@ -20,18 +21,31 @@ router = APIRouter()
 db_session = Session()
 
 
-@router.get("/task", response_model=List[schemas.Task])
-def read_task(
+@router.get("/task", response_model=schemas.TaskPaginated)
+def read_tasks(
+        *,
         db: Session = Depends(get_db),
-        skip: int = 0,
-        limit: int = 100,
+        request: Request,
+        page: int = 1,
+        size: int = 20,
+        shared: bool = False,
+        sort_on: str = 'uid',
+        sort_order: str = 'desc',
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve tasks.
     """
-    # tasks = crud.task.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
-    tasks = current_user.get_tasks()
+    tasks = crud.task.get_paginated_multi(
+        db, 
+        request=request,
+        page=page, 
+        size=size, 
+        owner_uid=current_user.uid,
+        shared=shared,
+        sort_on=sort_on,        
+        sort_order=sort_order
+    )
     return tasks
 
 

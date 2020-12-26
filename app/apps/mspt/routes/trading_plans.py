@@ -4,6 +4,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Request
 )
 from sqlalchemy.orm import Session
 
@@ -21,22 +22,32 @@ router = APIRouter()
 db_session = Session()
 
 
-@router.get("/trading-plan", response_model=List[schemas.TradingPlan])
+@router.get("/trading-plan", response_model=schemas.TradingPlanPaginated)
 def read_trading_plans(
+        *,
         db: Session = Depends(get_db),
-        skip: int = 0,
-        limit: int = 100,
-        shared: bool = Query(False),
+        request: Request,
+        page: int = 1,
+        size: int = 20,
+        shared: bool = False,
+        sort_on: str = 'uid',
+        sort_order: str = 'desc',
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve trading plans.
     """
-    if not shared:
-        trading_plans = crud.trading_plan.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
-    else:
-        trading_plans = crud.trading_plan.get_multi_shared(db, public=shared, skip=skip, limit=limit)
-    return trading_plans
+    t_plans = crud.trading_plan.get_paginated_multi(
+        db, 
+        request=request,
+        page=page, 
+        size=size, 
+        owner_uid=current_user.uid,
+        shared=shared,
+        sort_on=sort_on,        
+        sort_order=sort_order
+    )
+    return t_plans
 
 
 @router.post("/trading-plan", response_model=schemas.TradingPlan)

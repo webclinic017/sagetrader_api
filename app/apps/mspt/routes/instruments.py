@@ -24,7 +24,7 @@ db_session = Session()
 def read_instruments(
         db: Session = Depends(get_db),
         skip: int = 0,
-        limit: int = 100,
+        limit: int = 200,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """

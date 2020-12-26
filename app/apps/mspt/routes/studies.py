@@ -4,6 +4,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Request
 )
 from sqlalchemy.orm import Session
 
@@ -26,21 +27,32 @@ db_session = Session()
 # ........ Study Routes .........
 #
 
-@router.get("/study", response_model=List[schemas.StudyWithAttrs])
+
+@router.get("/study", response_model=schemas.StudyPaginated)
 def read_study(
+        *,
         db: Session = Depends(get_db),
-        skip: int = 0,
-        limit: int = 100,
-        shared: bool = Query(False),
+        request: Request,
+        page: int = 1,
+        size: int = 20,
+        shared: bool = False,
+        sort_on: str = 'uid',
+        sort_order: str = 'desc',
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve studies.
     """
-    if not shared:
-        studies = crud.study.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
-    else:
-        studies = crud.study.get_multi_shared(db, public=shared, skip=skip, limit=limit)
+    studies = crud.study.get_paginated_multi(
+        db, 
+        request=request,
+        page=page, 
+        size=size, 
+        owner_uid=current_user.uid,
+        shared=shared,
+        sort_on=sort_on,        
+        sort_order=sort_order
+    )
     return studies
 
 
@@ -104,22 +116,33 @@ def delete_study(
 # ........ Study Item Routes .........
 #
 
-@router.get("/studyitems/{study_uid}", response_model=List[schemas.StudyItemWithAttrs])
-def read_studyitems(
+
+@router.get("/studyitems", response_model=schemas.StudyItemPaginated)
+def read_study_items(
         *,
         db: Session = Depends(get_db),
-        study_uid: int,
-        skip: int = 0,
-        limit: int = 100,
+        request: Request,
+        page: int = 1,
+        size: int = 20,
+        shared: bool = False,
+        sort_on: str = 'uid',
+        sort_order: str = 'desc',
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve studyitems.
     """
-    studies = crud.studyitem.get_multi_by_study(db, study_uid=study_uid, skip=skip, limit=limit)
-    # for study in studies:
-    #     study.date = str(study.date)
-    return studies
+    s_items = crud.studyitem.get_paginated_multi(
+        db, 
+        request=request,
+        page=page, 
+        size=size, 
+        owner_uid=current_user.uid,
+        shared=shared,
+        sort_on=sort_on,        
+        sort_order=sort_order
+    )
+    return s_items
 
 
 @router.post("/studyitems", response_model=schemas.StudyItemWithAttrs)

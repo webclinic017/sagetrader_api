@@ -22,28 +22,31 @@ router = APIRouter()
 db_session = Session()
 
 
-#
-# ........ Trade Routes .........
-#
-
-@router.get("/trade", response_model=List[schemas.Trade])
+@router.get("/trade", response_model=schemas.TradePaginated)
 def read_trades(
+        *,
         db: Session = Depends(get_db),
-        skip: int = 0,
-        limit: int = 100,
-        shared: bool = Query(False),
+        request: Request,
+        page: int = 1,
+        size: int = 20,
+        shared: bool = False,
+        sort_on: str = 'uid',
+        sort_order: str = 'desc',
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
     Retrieve trades.
     """
-    if not shared:
-        trades = crud.trade.get_multi_for_user(db, owner_uid=current_user.uid, skip=skip, limit=limit)
-    else:
-        trades = crud.trade.get_multi_shared(db, public=shared, skip=skip, limit=limit)
-        
-    for trade in trades:
-        trade.date = str(trade.date)
+    trades = crud.trade.get_paginated_multi(
+        db, 
+        request=request,
+        page=page, 
+        size=size, 
+        owner_uid=current_user.uid,
+        shared=shared,
+        sort_on=sort_on,        
+        sort_order=sort_order
+    )
     return trades
 
 
@@ -104,31 +107,3 @@ def delete_trade(
     trade = crud.trade.remove(db, uid=trade_uid)
     trade.date = str(trade.date)
     return trade
-
-
-@router.get("/trade-pages", response_model=schemas.TradePaginated)
-def read_trades(
-        *,
-        db: Session = Depends(get_db),
-        request: Request,
-        page: int = 1,
-        size: int = 3,
-        shared: bool = False,
-        sort_on: str = 'uid',
-        sort_order: str = 'desc',
-        current_user: user_models.User = Depends(get_current_active_user),
-):
-    """
-    Retrieve trades.
-    """
-    trades = crud.trade.get_paginated_multi(
-        db, 
-        request=request,
-        page=page, 
-        size=size, 
-        owner_uid=current_user.uid,
-        shared=shared,
-        sort_on=sort_on,        
-        sort_order=sort_order
-    )
-    return trades
