@@ -117,17 +117,17 @@ def delete_study(
 #
 
 
-@router.get("/studyitems", response_model=schemas.StudyItemPaginated)
+@router.get("/studyitems/{study_uid}", response_model=schemas.StudyItemPaginated)
 def read_study_items(
         *,
         db: Session = Depends(get_db),
         request: Request,
+        study_uid: int,
         page: int = 1,
         size: int = 20,
         shared: bool = False,
         sort_on: str = 'uid',
         sort_order: str = 'desc',
-        study_uid: int,
         current_user: user_models.User = Depends(get_current_active_user),
 ):
     """
@@ -138,7 +138,7 @@ def read_study_items(
         request=request,
         page=page, 
         size=size, 
-        owner_uid=current_user.uid,
+        owner_uid=None,
         shared=shared,
         sort_on=sort_on,        
         sort_order=sort_order,
