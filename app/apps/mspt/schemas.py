@@ -155,8 +155,8 @@ class StyleDelete(StyleInDBBase):
 # ............................................ Trade Schemas
 #
 class TradeBase(BaseModel):
-    owner_uid: Optional[int]
-    public: bool = False
+    owner_uid: Optional[int] = None
+    public: Optional[bool] = False
     instrument_uid: Optional[int] = None
     strategy_uid: Optional[int] = None
     position: Optional[bool] = True
