@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.settings.database import DBModel
-from app.settings.database.sqlalchemy_filters.pagination2 import apply_pagination
-from app.settings.database.sqlalchemy_filters.filters import apply_filters
-from app.settings.database.sqlalchemy_filters.sorting import apply_sort
+from app.settings.database.sqlalchemy_filters import apply_pagination
+from app.settings.database.sqlalchemy_filters import apply_filters
+from app.settings.database.sqlalchemy_filters import apply_sort
 
 
 ModelType = TypeVar("ModelType", bound=DBModel)
